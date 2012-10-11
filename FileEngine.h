@@ -47,11 +47,11 @@ class FileEngine : public QAbstractFileEngine
         virtual bool supportsExtension(Extension extension) const;
 
     private:
-        PHYSFS_file *fp;
-        qint64 fileSize;
-        FileFlags flags;
-        QString filename;
-        QDateTime datetime;
+        PHYSFS_file *_handler;
+        qint64 _size;
+        FileFlags _flags;
+        QString _filename;
+        QDateTime _datetime;
 };
 
 class FileEngineHandler : public QAbstractFileEngineHandler

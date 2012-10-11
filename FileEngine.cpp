@@ -5,10 +5,10 @@
 const QString FileEngineHandler::scheme = "physfs:/";
 
 FileEngine::FileEngine(const QString& filename)
-: fp(NULL)
-, flags(0)
+: _handler(NULL)
+, _flags(0)
 {
-    setFileName(filename);
+    setFilename(filename);
 }
 
 FileEngine::~FileEngine()
@@ -21,24 +21,24 @@ bool FileEngine::open(QIODevice::OpenMode openMode)
     close();
 
     if (openMode & QIODevice::WriteOnly) {
-        fp = PHYSFS_openWrite(filename.toUtf8().constData());
-        flags = QAbstractFileEngine::WriteOwnerPerm | QAbstractFileEngine::WriteUserPerm | QAbstractFileEngine::FileType;
+        _handler = PHYSFS_openWrite(_filename.toUtf8().constData());
+        _flags = QAbstractFileEngine::WriteOwnerPerm | QAbstractFileEngine::WriteUserPerm | QAbstractFileEngine::FileType;
     }
 
     else if (openMode & QIODevice::ReadOnly) {
-        fp = PHYSFS_openRead(filename.toUtf8().constData());
+        _handler = PHYSFS_openRead(_filename.toUtf8().constData());
     }
 
     else if (openMode & QIODevice::Append) {
-        fp = PHYSFS_openAppend(filename.toUtf8().constData());
+        _handler = PHYSFS_openAppend(_filename.toUtf8().constData());
     }
 
     else {
         qWarning("Bad file open mode: %d", (int)openMode);
     }
 
-    if (!fp) {
-        qWarning("Failed to open %s, reason: %s", filename.toUtf8().constData(), PHYSFS_getLastError());
+    if (!_handler) {
+        qWarning("Failed to open %s, reason: %s", _filename.toUtf8().constData(), PHYSFS_getLastError());
         return false;
     }
 
@@ -48,8 +48,8 @@ bool FileEngine::open(QIODevice::OpenMode openMode)
 bool FileEngine::close()
 {
     if (isOpened()) {
-        int result = PHYSFS_close(fp);
-        fp = NULL;
+        int result = PHYSFS_close(_handler);
+        _handler = NULL;
         return result != 0;
     }
 
@@ -58,22 +58,22 @@ bool FileEngine::close()
 
 bool FileEngine::flush()
 {
-    return PHYSFS_flush(fp) != 0;
+    return PHYSFS_flush(_handler) != 0;
 }
 
 qint64 FileEngine::size() const
 {
-    return fileSize;
+    return _size;
 }
 
 qint64 FileEngine::pos() const
 {
-    return PHYSFS_tell(fp);
+    return PHYSFS_tell(_handler);
 }
 
 bool FileEngine::seek(qint64 pos)
 {
-    return PHYSFS_seek(fp, pos) != 0;
+    return PHYSFS_seek(_handler, pos) != 0;
 }
 
 bool FileEngine::isSequential() const
@@ -83,7 +83,7 @@ bool FileEngine::isSequential() const
 
 bool FileEngine::remove()
 {
-    return PHYSFS_delete(filename.toUtf8().constData()) != 0;
+    return PHYSFS_delete(_filename.toUtf8().constData()) != 0;
 }
 
 bool FileEngine::mkdir(const QString &dirName, bool createParentDirectories) const
@@ -127,7 +127,7 @@ QStringList FileEngine::entryList(QDir::Filters filters, const QStringList &filt
 
 QAbstractFileEngine::FileFlags FileEngine::fileFlags(FileFlags type) const
 {
-    return type & flags;
+    return type & _flags;
 }
 
 QString FileEngine::fileName(FileName file) const
@@ -135,40 +135,40 @@ QString FileEngine::fileName(FileName file) const
     if (file == QAbstractFileEngine::AbsolutePathName)
         return PHYSFS_getWriteDir();
 
-    return filename;
+    return _filename;
 }
 
-QDateTime FileEngine::fileTime(FileTime time) const
+Q_datetime FileEngine::fileTime(FileTime time) const
 {
     switch (time)
     {
         case QAbstractFileEngine::ModificationTime:
         default:
-            return datetime;
+            return _datetime;
             break;
     };
 }
 
-void FileEngine::setFileName(const QString &file)
+void FileEngine::setFilename(const QString &file)
 {
-    filename = file;
+    _filename = file;
     PHYSFS_Stat stat;
-    if (PHYSFS_stat(filename.toUtf8().constData(), &stat) != 0) {
-        fileSize = stat.filesize;
-        datetime = QDateTime::fromTime_t(stat.modtime);
-        flags |= QAbstractFileEngine::ExistsFlag;
+    if (PHYSFS_stat(_filename.toUtf8().constData(), &stat) != 0) {
+        _size = stat.filesize;
+        _datetime = QDateTime::fromTime_t(stat.modtime);
+        _flags |= QAbstractFileEngine::ExistsFlag;
 
         switch (stat.filetype)
         {
             case PHYSFS_FILETYPE_REGULAR:
-                flags |= QAbstractFileEngine::FileType;
+                _flags |= QAbstractFileEngine::FileType;
                 break;
 
             case PHYSFS_FILETYPE_DIRECTORY:
-                flags |= QAbstractFileEngine::DirectoryType;
+                _flags |= QAbstractFileEngine::DirectoryType;
                 break;
             case PHYSFS_FILETYPE_SYMLINK:
-                flags |= QAbstractFileEngine::LinkType;
+                _flags |= QAbstractFileEngine::LinkType;
                 break;
         };
     }
@@ -176,12 +176,12 @@ void FileEngine::setFileName(const QString &file)
 
 bool FileEngine::atEnd() const
 {
-    return PHYSFS_eof(fp) != 0;
+    return PHYSFS_eof(_handler) != 0;
 }
 
 qint64 FileEngine::read(char *data, qint64 maxlen)
 {
-    return PHYSFS_read(fp, data, 1, maxlen);
+    return PHYSFS_read(_handler, data, 1, maxlen);
 }
 
 qint64 FileEngine::readLine(char *data, qint64 maxlen)
@@ -191,12 +191,12 @@ qint64 FileEngine::readLine(char *data, qint64 maxlen)
 
 qint64 FileEngine::write(const char *data, qint64 len)
 {
-    return PHYSFS_write(fp, data, 1, len);
+    return PHYSFS_write(_handler, data, 1, len);
 }
 
 bool FileEngine::isOpened() const
 {
-    return fp != NULL;
+    return _handler != NULL;
 }
 
 QFile::FileError FileEngine::error() const
@@ -222,3 +222,4 @@ QAbstractFileEngine* FileEngineHandler::create(const QString &filename) const
 
     return NULL;
 }
+
